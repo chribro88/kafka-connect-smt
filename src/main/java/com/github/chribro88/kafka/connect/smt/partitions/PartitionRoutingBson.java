@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.debezium.transforms.partitions;
+package com.github.chribro88.kafka.connect.smt.partitions;
 
 import static io.debezium.data.Envelope.FieldName.AFTER;
 import static io.debezium.data.Envelope.FieldName.BEFORE;
@@ -39,9 +39,9 @@ import io.debezium.util.MurmurHash3;
  * @param <R> the subtype of {@link ConnectRecord} on which this transformation will operate
  * @author Mario Fiore Vitale
  */
-public class PartitionRouting<R extends ConnectRecord<R>> implements Transformation<R> {
+public class PartitionRoutingBson<R extends ConnectRecord<R>> implements Transformation<R> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PartitionRouting.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PartitionRoutingBson.class);
     private static final MurmurHash3 MURMUR_HASH_3 = MurmurHash3.getInstance();
     public static final String NESTING_SEPARATOR = "\\.";
     public static final String CHANGE_SPECIAL_FIELD = "change";
@@ -148,7 +148,7 @@ public class PartitionRouting<R extends ConnectRecord<R>> implements Transformat
     @Override
     public R apply(R originalRecord) {
 
-        LOGGER.trace("Starting PartitionRouting SMT with conf: {} {}", payloadFields, partitionNumber);
+        LOGGER.trace("Starting PartitionRoutingBson SMT with conf: {} {}", payloadFields, partitionNumber);
 
         if (originalRecord.value() == null || !smtManager.isValidEnvelope(originalRecord)) {
             LOGGER.trace("Skipping tombstone or message without envelope");

@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.debezium.transforms.partitions;
+package com.github.chribro88.kafka.connect.smt.partitions;
 
 import static io.debezium.data.Envelope.Operation.CREATE;
 import static io.debezium.data.Envelope.Operation.DELETE;
@@ -26,7 +26,7 @@ import org.junit.Test;
 import io.debezium.data.Envelope;
 import io.debezium.doc.FixFor;
 
-public class PartitionRoutingTest {
+public class PartitionRoutingBsonTest {
 
     public static final Schema VALUE_SCHEMA = SchemaBuilder.struct()
             .name("server1.inventory.products.Value")
@@ -35,12 +35,12 @@ public class PartitionRoutingTest {
             .field("product", Schema.OPTIONAL_STRING_SCHEMA)
             .build();
 
-    private final PartitionRouting<SourceRecord> partitionRoutingTransformation = new PartitionRouting<>();
+    private final PartitionRoutingBson<SourceRecord> PartitionRoutingBsonTransformation = new PartitionRoutingBson<>();
 
     @Test
     public void whenNoPartitionPayloadFieldDeclaredAConfigExceptionIsThrew() {
 
-        assertThatThrownBy(() -> partitionRoutingTransformation.configure(Map.of(
+        assertThatThrownBy(() -> PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.topic.num", 2)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining(
@@ -50,7 +50,7 @@ public class PartitionRoutingTest {
     @Test
     public void whenNoPartitionTopicNumFieldDeclaredAConfigExceptionIsThrew() {
 
-        assertThatThrownBy(() -> partitionRoutingTransformation.configure(Map.of(
+        assertThatThrownBy(() -> PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", 2)))
                 .isInstanceOf(ConfigException.class)
                 .hasMessageContaining(
@@ -60,7 +60,7 @@ public class PartitionRoutingTest {
     @Test
     public void whenPartitionPayloadFieldContainsEmptyElementAConfigExceptionIsThrew() {
 
-        assertThatThrownBy(() -> partitionRoutingTransformation.configure(Map.of(
+        assertThatThrownBy(() -> PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", ",source.table",
                 "partition.topic.num", 2)))
                 .isInstanceOf(ConfigException.class)
@@ -71,13 +71,13 @@ public class PartitionRoutingTest {
     @Test
     public void spaceBetweenNestedFiledSeparatedWillBeCorrectManaged() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change . product",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "APPLE"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isZero();
     }
@@ -85,13 +85,13 @@ public class PartitionRoutingTest {
     @Test
     public void correctComputeKafkaPartitionBasedOnNewConfiguredFieldOnCreateAndUpdateEvents() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "after.product",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "APPLE"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isZero();
     }
@@ -99,13 +99,13 @@ public class PartitionRoutingTest {
     @Test
     public void correctComputeKafkaPartitionBasedOnSpecialChangeNestedFieldOnCreateEvent() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change.product",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "APPLE"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isZero();
     }
@@ -113,13 +113,13 @@ public class PartitionRoutingTest {
     @Test
     public void whenASpecifiedFieldIsNotFoundOnPayloadItWillBeIgnored() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "after.not_existing",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "APPLE"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(eventRecord).isEqualTo(transformed);
     }
@@ -128,13 +128,13 @@ public class PartitionRoutingTest {
     @FixFor("DBZ-6543")
     public void whenAnSpecifiedOptionalFieldIsNotFoundOnPayloadItWillBeIgnored() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change.product",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(Map.of("id", 1L, "price", 1.0F)), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(eventRecord).isEqualTo(transformed);
     }
@@ -142,13 +142,13 @@ public class PartitionRoutingTest {
     @Test
     public void onlyFieldThatExistForCurrentEventWillBeUsedForPartitionComputation() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "after.not_existing,change.product",
                 "partition.topic.num", 3));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "orange"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isOne();
     }
@@ -156,13 +156,13 @@ public class PartitionRoutingTest {
     @Test
     public void correctComputeKafkaPartitionBasedOnSpecialChangeNestedFieldOnCreateDelete() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change.product",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "APPLE"), DELETE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isZero();
     }
@@ -170,13 +170,13 @@ public class PartitionRoutingTest {
     @Test
     public void truncateOperationRecordWillBeSkipped() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change.product",
                 "partition.topic.num", 2));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "APPLE"), TRUNCATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(eventRecord).isEqualTo(transformed);
     }
@@ -184,7 +184,7 @@ public class PartitionRoutingTest {
     @Test
     public void correctComputeKafkaPartitionBasedOnNotNestedField() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "op",
                 "partition.topic.num", 2));
 
@@ -192,9 +192,9 @@ public class PartitionRoutingTest {
         final SourceRecord createRecord2 = buildSourceRecord(productRow(1L, 1.0F, "ORANGE"), CREATE);
         final SourceRecord updateRecord = buildSourceRecord(productRow(1L, 1.0F, "ORANGE"), UPDATE);
 
-        SourceRecord transformedCreateRecord1 = partitionRoutingTransformation.apply(createRecord1);
-        SourceRecord transformedCreateRecord2 = partitionRoutingTransformation.apply(createRecord2);
-        SourceRecord transformedUpdateRecord = partitionRoutingTransformation.apply(updateRecord);
+        SourceRecord transformedCreateRecord1 = PartitionRoutingBsonTransformation.apply(createRecord1);
+        SourceRecord transformedCreateRecord2 = PartitionRoutingBsonTransformation.apply(createRecord2);
+        SourceRecord transformedUpdateRecord = PartitionRoutingBsonTransformation.apply(updateRecord);
 
         assertThat(transformedCreateRecord1.kafkaPartition()).isEqualTo(transformedCreateRecord2.kafkaPartition());
         assertThat(transformedUpdateRecord).isNotEqualTo(updateRecord);
@@ -203,13 +203,13 @@ public class PartitionRoutingTest {
     @Test
     public void byDefaultJavaHashIsUsed() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change.id, change.product",
                 "partition.topic.num", 100));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "orange"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isEqualTo(39);
     }
@@ -217,14 +217,14 @@ public class PartitionRoutingTest {
     @Test
     public void murmurHashWillBeUsed() {
 
-        partitionRoutingTransformation.configure(Map.of(
+        PartitionRoutingBsonTransformation.configure(Map.of(
                 "partition.payload.fields", "change.id, change.product",
                 "partition.topic.num", 100,
                 "partition.hash.function", "murmur"));
 
         final SourceRecord eventRecord = buildSourceRecord(productRow(1L, 1.0F, "orange"), CREATE);
 
-        SourceRecord transformed = partitionRoutingTransformation.apply(eventRecord);
+        SourceRecord transformed = PartitionRoutingBsonTransformation.apply(eventRecord);
 
         assertThat(transformed.kafkaPartition()).isEqualTo(65);
     }
