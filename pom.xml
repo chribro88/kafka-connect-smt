@@ -20,8 +20,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.chribro88.kafka.connect.smt</groupId>
-    <artifactId>PartitionRoutingBson</artifactId>
+    <groupId>com.github.chribro88.kafka.connect.transforms</groupId>
+    <artifactId>HeaderPartitionRouting</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <properties>
