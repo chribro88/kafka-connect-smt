@@ -5,6 +5,7 @@
  */
 package com.github.chribro88.kafka.connect.transforms.partitions;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -173,14 +174,22 @@ public class HeaderPartitionRouting<R extends ConnectRecord<R>> implements Trans
     private Optional<String> getHeaderValue(Headers headers, String headerKey) {
         Header header = headers.lastWithName(headerKey);
         if (header != null) {
-            String stringValue = new String((byte[])header.value());
-            return Optional.ofNullable(stringValue);
-        }
-        else {
+            if (header.value() instanceof byte[]) {
+                byte[] bytes = (byte[]) header.value();
+                String stringValue = new String(bytes, StandardCharsets.UTF_8);
+                return Optional.ofNullable(stringValue);
+            } else if (header.value() instanceof String) {
+                return Optional.ofNullable((String) header.value());
+            } else {
+                LOGGER.warn("Unexpected type for header value of key {}: {}", headerKey, header.value().getClass());
+                return Optional.empty();
+            }
+        } else {
             LOGGER.trace("Field {} not found on headers {}. It will not be considered", headerKey, headers);
             return Optional.empty();
         }
     }
+    
 
 
     private R buildNewRecord(R originalRecord, int partition) {
