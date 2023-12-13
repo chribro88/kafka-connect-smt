@@ -5,9 +5,6 @@
  */
 package com.github.chribro88.kafka.connect.transforms.partitions;
 
-import static io.debezium.data.Envelope.FieldName.*;
-
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -16,11 +13,8 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.ConnectRecord;
-import org.apache.kafka.connect.data.Struct;
-import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.header.Headers;
-import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +23,6 @@ import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;
 import io.debezium.config.EnumeratedValue;
 import io.debezium.config.Field;
-import io.debezium.data.Envelope;
 import io.debezium.transforms.SmtManager;
 import io.debezium.util.MurmurHash3;
 
@@ -55,7 +48,7 @@ public class HeaderPartitionRouting<R extends ConnectRecord<R>> implements Trans
          */
 
         JAVA("java", Object::hashCode),
-        MURMUR("murmur", MurmurHash3.getInstance()::hash),
+        MURMUR("murmur", MURMUR_HASH_3::hash),
         PASSTHROUGH("passthrough", value -> (int) (Long.parseLong((String) value) & Integer.MAX_VALUE) );
 
         private final String name;
@@ -145,18 +138,14 @@ public class HeaderPartitionRouting<R extends ConnectRecord<R>> implements Trans
     @Override
     public R apply(R originalRecord) {
 
-        LOGGER.trace("Starting PartitionRoutingBson SMT with conf: {} {}", headerFields, partitionNumber);
+        LOGGER.trace("Starting HeaderPartitionRoutingB SMT with conf: {} {}", headerFields, partitionNumber);
 
-        if (originalRecord.value() == null || !smtManager.isValidEnvelope(originalRecord)) {
-            LOGGER.trace("Skipping tombstone or message without envelope");
+        if (originalRecord.headers().isEmpty()) {
+            LOGGER.trace("No headers, passing it unchanged ");
             return originalRecord;
         }
         
         try {
-
-            if (SmtManager.isGenericOrTruncateMessage((SourceRecord) originalRecord)) {
-                return originalRecord;
-            }
 
             // byte[] headerValue = getHeaderValue(originalRecord.headers(), headerFields);
             List<Object> headersValue = headerFields.stream()
@@ -193,58 +182,6 @@ public class HeaderPartitionRouting<R extends ConnectRecord<R>> implements Trans
         }
     }
 
-    private Optional<Object> toValue(String fieldName, Struct envelope) {
-
-        try {
-            String[] subFields = Arrays.stream(fieldName.split(NESTING_SEPARATOR)).map(String::trim).toArray(String[]::new);
-
-            if (subFields.length == 1) {
-                return Optional.ofNullable(envelope.get(subFields[0]));
-            }
-
-            Struct lastStruct = getLastStruct(envelope, subFields);
-
-            return Optional.ofNullable(lastStruct.get(subFields[subFields.length - 1]));
-        }
-        catch (DataException e) {
-            LOGGER.trace("Field {} not found on headers {}. It will not be considered", fieldName, envelope);
-            return Optional.empty();
-        }
-
-    }
-
-    private static Struct getLastStruct(Struct envelope, String[] subFields) {
-
-        Struct currectStruct = envelope;
-        for (int i = 0; i < subFields.length - 1; i++) {
-
-            String fieldName = getFieldName(envelope, subFields, i);
-            currectStruct = currectStruct.getStruct(fieldName);
-        }
-        return currectStruct;
-    }
-
-    private static String getFieldName(Struct envelope, String[] subFields, int i) {
-
-        String fieldName = subFields[i];
-        if (CHANGE_SPECIAL_FIELD.equals(subFields[i])) {
-            Envelope.Operation operation = Envelope.Operation.forCode(envelope.getString(OPERATION));
-            fieldName = Envelope.Operation.DELETE.equals(operation) ? BEFORE : AFTER;
-        }
-        return fieldName;
-    }
-
-    // private R buildNewRecord(R originalRecord, Struct envelope, int partition) {
-    //     LOGGER.trace("Message {} will be sent to partition {}", envelope, partition);
-
-    //     return originalRecord.newRecord(originalRecord.topic(), partition,
-    //             originalRecord.keySchema(),
-    //             originalRecord.key(),
-    //             originalRecord.valueSchema(),
-    //             envelope,
-    //             originalRecord.timestamp(),
-    //             originalRecord.headers());
-    // }
 
     private R buildNewRecord(R originalRecord, int partition) {
         LOGGER.trace("Record will be sent to partition {}", partition);
